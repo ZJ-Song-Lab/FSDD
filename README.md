@@ -1,4 +1,4 @@
-# SAR Ship Detection in Complex Scenarios: A Frequency-Spatial Dual-Domain Enhancement Framework
+# Dual-Domain Fusion for Small-Object SAR Ship Detection in Complex Scenes
 
 
 ## 📖 Abstract
@@ -81,11 +81,6 @@ Detection results under **coastal clutter** and **open-sea scenarios**:
 
 ---
 
-
-
-oject Page**: [GitHub](https://github.com/ZJ-Song-Lab/MSEIS_HAFB)
-
----
 
 ## 📜 License
 This project is released under the **MIT License**. See [LICENSE](./LICENSE) for details.
