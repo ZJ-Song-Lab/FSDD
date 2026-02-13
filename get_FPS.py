@@ -1,89 +1,91 @@
-import warnings
-warnings.filterwarnings('ignore')
-import argparse
-import logging
-import math
-import os
-import random
-import time
-import sys
-from copy import deepcopy
-from pathlib import Path
-from threading import Thread
+# SAR Ship Detection in Complex Scenarios: A Frequency-Spatial Dual-Domain Enhancement Framework
 
-import numpy as np
-import torch.distributed as dist
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torch.optim.lr_scheduler as lr_scheduler
-import torch.utils.data
-import yaml
-from torch.cuda import amp
-from torch.nn.parallel import DistributedDataParallel as DDP
-from tqdm import tqdm
 
-from ultralytics import RTDETR
-from ultralytics.utils.torch_utils import select_device
-from ultralytics.nn.tasks import attempt_load_weights
+## 📖 Abstract
+Synthetic Aperture Radar (SAR) ship detection is a core task in maritime surveillance, but it remains highly challenging due to target scale variations, complex backgrounds, and heavy speckle noise. Existing methods often struggle to detect small vessels in noisy open-sea environments. To address these issues, we propose a novel end-to-end detection framework that integrates **three synergistic modules**:
 
-def get_weight_size(path):
-    stats = os.stat(path)
-    return f'{stats.st_size / 1024 / 1024:.1f}'
+1. **Frequency–Spatial Enhancement Module (FSEM):** Fuses Scharr-based spatial edge cues with frequency-domain contextual priors, significantly improving robustness against speckle and clutter.
+2. **Multi-Stage Feature Enhancement (MSFE):** A lightweight Transformer-inspired block incorporating Polarized Linear Attention, DynamicTanh normalization, and Edge-Enhanced FFNs, enhancing global reasoning and stabilizing training.
+3. **Small-Object Enhance Pyramid (SOEP):** Efficiently injects high-resolution details into deeper layers via SPDConv and OmniKernel without adding an extra detection head, improving small-vessel detection with minimal cost.
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='best.pt', help='trained weights path')
-    parser.add_argument('--batch', type=int, default=1, help='total batch size for all GPUs')
-    parser.add_argument('--imgs', nargs='+', type=int, default=[640, 640], help='[height, width] image sizes')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--warmup', default=200, type=int, help='warmup time')
-    parser.add_argument('--testtime', default=1000, type=int, help='test time')
-    parser.add_argument('--half', action='store_true', default=False, help='fp16 mode.')
-    opt = parser.parse_args()
-    
-    device = select_device(opt.device, batch=opt.batch)
-    
-    # Model
-    weights = opt.weights
-    if weights.endswith('.pt'):
-        model = attempt_load_weights(weights=weights, device=device)
-        print(f'Loaded {weights}')  # report
-    else:
-        model = RTDETR(weights).model
-    
-    model = model.to(device)
-    model.fuse()
-    model.eval()
-    example_inputs = torch.randn((opt.batch, 3, *opt.imgs)).to(device)
-    
-    if opt.half:
-        model = model.half()
-        example_inputs = example_inputs.half()
-    
-    print('begin warmup...')
-    for i in tqdm(range(opt.warmup), desc='warmup....'):
-        model(example_inputs)
-    
-    print('begin test latency...')
-    time_arr = []
-    
-    for i in tqdm(range(opt.testtime), desc='test latency....'):
-        if device.type == 'cuda':
-            torch.cuda.synchronize()
-        start_time = time.time()
-        
-        model(example_inputs)
-        
-        if device.type == 'cuda':
-            torch.cuda.synchronize()
-        end_time = time.time()
-        time_arr.append(end_time - start_time)
-    
-    std_time = np.std(time_arr)
-    infer_time_per_image = np.sum(time_arr) / (opt.testtime * opt.batch)
-    
-    if weights.endswith('.pt'):
-        print(f'model weights:{opt.weights} size:{get_weight_size(opt.weights)}M (bs:{opt.batch})Latency:{infer_time_per_image:.5f}s +- {std_time:.5f}s fps:{1 / infer_time_per_image:.1f}')
-    else:
-        print(f'model yaml:{opt.weights} (bs:{opt.batch})Latency:{infer_time_per_image:.5f}s +- {std_time:.5f}s fps:{1 / infer_time_per_image:.1f}')
+Extensive experiments on **SSDD**, **RSDD-SAR**, and **HRSID** datasets demonstrate that our framework achieves **state-of-the-art accuracy and efficiency**, particularly for small-object detection in cluttered coastal and open-sea scenarios.
+
+[[Paper PDF](./paper.pdf)] (coming soon)  
+[[Project Page](https://github.com/ZJ-Song-Lab/MSEIS_HAFB)]
+
+---
+
+## 🚀 Features
+- Robust detection under heavy **speckle noise** and **background clutter**
+- Enhanced **multi-scale feature representation** with frequency–spatial priors
+- Improved **small-object detection** without overhead of extra detection heads
+- State-of-the-art results on **three public SAR ship detection datasets**
+
+---
+
+## 📂 Datasets
+We evaluate on three widely-used SAR ship detection datasets:
+- **SSDD**: SAR Ship Detection Dataset
+- **RSDD-SAR**: Rotated SAR Ship Detection Dataset
+- **HRSID**: High-Resolution SAR Ship Detection Dataset
+
+Preprocessing and dataset preparation scripts are available in `./datasets/`.
+
+---
+
+## ⚙️ Installation
+```bash
+# Clone the repository
+git clone https://github.com/ZJ-Song-Lab/FSDD.git
+cd FSDD
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+---
+
+## 🏋️ Training
+```bash
+# Example training command
+python train.py --data configs/ssdd.yaml --epochs 300 --batch 16 --device 0
+```
+
+---
+
+## 🔍 Evaluation
+```bash
+# Run evaluation
+python val.py --data configs/ssdd.yaml --weights runs/train/exp/weights/best.pt
+```
+
+---
+
+## 📊 Results
+### Main Results (HRSID Dataset)
+| Model | mAP@50 | mAP@50:95 | Params (M) |
+|-------|--------|-----------|-------------|
+| RetinaNet | 83.8 | 53.3 | 36.3 |
+| Faster R-CNN | 81.0 | 55.9 | 41.3 |
+| YOLO13n | 91.7 | 65.8 | 6.1 |
+| **Ours** | **92.7** | **69.3** | 47.1 |
+
+Our framework achieves new **state-of-the-art** performance on multiple benchmarks, particularly excelling in **small-object detection**.
+
+---
+
+## 📸 Visualization
+Detection results under **coastal clutter** and **open-sea scenarios**:
+
+<img src="./Visualization.jpg" width="80%">
+
+---
+
+
+
+oject Page**: [GitHub](https://github.com/ZJ-Song-Lab/MSEIS_HAFB)
+
+---
+
+## 📜 License
+This project is released under the **MIT License**. See [LICENSE](./LICENSE) for details.
