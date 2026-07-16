@@ -11,9 +11,9 @@ def get_weight_size(path):
     return f'{stats.st_size / 1024 / 1024:.1f}'
 
 if __name__ == '__main__':
-    model_path = 'runs/train/exp/weights/best.pt'
+    model_path = 'runs/train/sar_ship_exp/weights/best.pt'
     model = RTDETR(model_path)
-    result = model.val(data='/root/dataset/dataset_visdrone/data.yaml',
+    result = model.val(data='datasets/SSDD.yaml',  # one of: SSDD.yaml / HRSID.yaml / RSDD.yaml
                       split='test',
                       imgsz=640,
                       batch=4,
