@@ -3,8 +3,19 @@
 > A YOLOv8l-based detector with three novel modules — **FSEM**, **MSFE**, and **SOEP** — for robust ship detection in SAR imagery under complex sea-surface backgrounds and small-target conditions.
 
 <p align="center">
-  <img src="./Visualization.jpg" alt="FSDD architecture" width="90%"/>
+  <img src="./overall.jpg" alt="FSDD overall architecture" width="95%"/>
 </p>
+
+<details>
+<summary><b>📖 Architecture details</b></summary>
+
+The overall framework is a YOLOv8l-style detector augmented with three pluggable modules:
+
+- **FSEM** (Frequency–Spatial Enhancement Module) — inserted early to sharpen ship edges and suppress sea-clutter via Scharr-edge + FFT dual-domain fusion.
+- **MSFE** (Multi-Stage Feature Enhancement) — applied stage-wise for adaptive recalibration (SAPA polarized linear attention + DyT + EDFFN + Mona reweighting gate).
+- **SOEP** (Small-Object Enhance Pyramid) — placed in the neck to recover small-target detail via SPDConv (space-to-depth) + OmniKernel (global–local fusion).
+
+</details>
 
 ---
 
@@ -46,7 +57,7 @@ FSDD-master/
 ├── detect.py                    # inference entry
 ├── get_FPS.py / get_model_erf.py / plot_result.py   # paper-side measurement scripts
 ├── requirements.txt
-└── Visualization.jpg            # architecture overview
+└── overall.jpg                  # overall model architecture
 ```
 
 ## 📦 Datasets
