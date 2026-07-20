@@ -778,6 +778,9 @@ def parse_model(d, ch, verbose=True, warehouse_manager=None):  # model_dict, inp
             args = [ch[f]]
         elif m is RTDETRDecoder:  # Decoder is an alias of RTDETRDecoder
             args.insert(1, [ch[x] for x in f])
+        elif m is Detect:  # YOLOv8 anchor-free decoupled head at P3-P5
+            args.append([ch[x] for x in f])
+            c2 = nc
         else:
             c2 = ch[f]
 

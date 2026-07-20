@@ -30,11 +30,11 @@ weight_decay=5e-4, 3-epoch linear warmup -> cosine to 1e-4, batch=16,
 replicated to 3 channels, HSV hue/sat gains zeroed.
 """
 
-from ultralytics import RTDETR
+from ultralytics import YOLO
 
 if __name__ == '__main__':
     # Full model (FSEM + MSFE + SOEP). For ablations use SOEP.yaml or MSFE.yaml.
-    model = RTDETR('FSDD/cfg/models/COMP.yaml')
+    model = YOLO('FSDD/cfg/models/COMP.yaml')
 
     model.train(
         data='datasets/SSDD.yaml',   # one of: SSDD.yaml / HRSID.yaml / RSDD.yaml
@@ -58,6 +58,6 @@ if __name__ == '__main__':
     model.train(data='datasets/HRSID.yaml', imgsz=640, epochs=600, batch=16)
 
     # Run an ablation config:
-    model = RTDETR('FSDD/cfg/models/SOEP.yaml')
+    model = YOLO('FSDD/cfg/models/SOEP.yaml')
     model.train(data='datasets/SSDD.yaml', epochs=600, lr0=0.01)
     """

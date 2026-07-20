@@ -1,48 +1,48 @@
 # Parameters
-nc: 80  # number of classes
-scales: # model compound scaling constants, i.e. 'model=yolov8n-cls.yaml' will call yolov8-cls.yaml with scale 'n'
+nc: 80  # number of classes (overridden by dataset nc at train time)
+scales: # model compound scaling constants, i.e. 'yolov8l' scale
   # [depth, width, max_channels]
   l: [1.00, 1.00, 1024]
 
+# Full model: YOLOv8l baseline (C2f-SPPF backbone + bidirectional PAFPN +
+# anchor-free decoupled head at P3-P5) + FSEM (P2/P3/P4 backbone levels) +
+# MSFE (neck P5) + SOEP (SPDConv + CSP_FeatureFusion at P3, no extra P2 head).
+
 backbone:
   # [from, repeats, module, args]
-  - [-1, 1, ConvNormLayer, [32, 3, 2, None, False, 'relu']] # 0-P1/2
-  - [-1, 1, ConvNormLayer, [32, 3, 1, None, False, 'relu']] # 1
-  - [-1, 1, ConvNormLayer, [64, 3, 1, None, False, 'relu']] # 2
-  - [-1, 1, nn.MaxPool2d, [3, 2, 1]] # 3-P2/4
-  
-  # [ch_out, block_type, block_nums, stage_num, act, variant]
-  - [-1, 1, Blocks, [64, BasicBlock, 2, 2, 'relu']] # 4
-  - [-1, 1, FSEM, [64]] # 5-P3/8
-  - [-1, 1, Blocks, [128, BasicBlock, 2, 3, 'relu']] # 6-P3/8
-  - [-1, 1, FSEM, [128]] # 7-P3/8
-  - [-1, 1, Blocks, [256, BasicBlock, 2, 4, 'relu']] # 8-P4/16
-  - [-1, 1, FSEM, [256]] # 9-P3/8
-  - [-1, 1, Blocks, [512, BasicBlock, 2, 5, 'relu']] # 10-P5/32
+  - [-1, 1, Conv, [64, 3, 2]]       # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]      # 1-P2/4
+  - [-1, 3, C2f, [128, True]]      # 2
+  - [-1, 1, FSEM, []]              # 3  FSEM at P2/4
+  - [-1, 1, Conv, [256, 3, 2]]     # 4-P3/8
+  - [-1, 6, C2f, [256, True]]      # 5
+  - [-1, 1, FSEM, []]              # 6  FSEM at P3/8
+  - [-1, 1, Conv, [512, 3, 2]]     # 7-P4/16
+  - [-1, 6, C2f, [512, True]]      # 8
+  - [-1, 1, FSEM, []]              # 9  FSEM at P4/16
+  - [-1, 1, Conv, [1024, 3, 2]]    # 10-P5/32
+  - [-1, 3, C2f, [1024, True]]     # 11
+  - [-1, 1, SPPF, [1024, 5]]       # 12
 
 head:
-  - [-1, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 11 input_proj.2
-  - [-1, 1, MSFE, [1024, 8]] # 12
-  - [-1, 1, Conv, [256, 1, 1]]  # 13, Y5, lateral_convs.0
+  - [-1, 1, MSFE, [1024, 8]]       # 13  MSFE at neck P5 (AIFI-style refinement)
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]  # 14
+  - [[-1, 9], 1, Concat, [1]]      # 15  cat backbone P4 (FSEM out)
+  - [-1, 3, C2f, [512]]            # 16  P4 branch (top-down)
 
-  - [-1, 1, nn.Upsample, [None, 2, 'nearest']] # 14
-  - [9, 1, Conv, [256, 1, 1, None, 1, 1, False]]  # 15 input_proj.1
-  - [[-2, -1], 1, Concat, [1]] # 16
-  - [-1, 6, RepC3, [256, 0.5]]  # 17, fpn_blocks.0
-  - [-1, 1, Conv, [128, 1, 1]]   # 18, Y4, lateral_convs.1
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]  # 17
+  - [[-1, 6], 1, Concat, [1]]      # 18  cat backbone P3 (FSEM out)
+  - [3, 1, SPDConv, [256]]         # 19  SOEP: inject projected P2 into P3
+  - [[-1, -2], 1, Concat, [1]]     # 20  cat P3 + P2-projection
+  - [-1, 1, CSP_FeatureFusion, []] # 21  SOEP: OmniKernel global-local fusion
+  - [-1, 3, C2f, [256]]            # 22  P3 out (small)
 
-  - [-1, 1, nn.Upsample, [None, 2, 'nearest']] # 19
-  - [5, 1, SPDConv, [128]] # 20
-  - [[-1, -2, 7], 1, Concat, [1]] # 21
-  - [-1, 1, CSP_FeatureFusion, []] # 22
-  - [-1, 3, RepC3, [256, 0.5]] # 23
+  - [-1, 1, Conv, [256, 3, 2]]      # 23  down
+  - [[-1, 16], 1, Concat, [1]]     # 24  cat P4 branch
+  - [-1, 3, C2f, [512]]            # 25  P4 out (medium)
 
-  - [-1, 1, Conv, [256, 3, 2]] # 24
-  - [[-1, 18], 1, Concat, [1]] # 25
-  - [-1, 3, RepC3, [256, 0.5]] # 26
+  - [-1, 1, Conv, [512, 3, 2]]      # 26  down
+  - [[-1, 13], 1, Concat, [1]]     # 27  cat neck P5 (MSFE out)
+  - [-1, 3, C2f, [1024]]           # 28  P5 out (large)
 
-  - [-1, 1, Conv, [256, 3, 2]] # 27
-  - [[-1, 13], 1, Concat, [1]] # 28
-  - [-1, 3, RepC3, [256, 0.5]] # 29
-
-  - [[23, 26, 29], 1, Decoder, [nc, 256, 300, 4, 8, 3]]  # RTDETRDecoder(P3, P4, P5)
+  - [[22, 25, 28], 1, Detect, [nc]]  # 29  Detect(P3, P4, P5) - anchor-free decoupled head

@@ -3,7 +3,7 @@ warnings.filterwarnings('ignore')
 import os
 import numpy as np
 from prettytable import PrettyTable
-from ultralytics import RTDETR
+from ultralytics import YOLO
 from ultralytics.utils.torch_utils import model_info
 
 def get_weight_size(path):
@@ -12,7 +12,7 @@ def get_weight_size(path):
 
 if __name__ == '__main__':
     model_path = 'runs/train/sar_ship_exp/weights/best.pt'
-    model = RTDETR(model_path)
+    model = YOLO(model_path)
     result = model.val(data='datasets/SSDD.yaml',  # one of: SSDD.yaml / HRSID.yaml / RSDD.yaml
                       split='test',
                       imgsz=640,
